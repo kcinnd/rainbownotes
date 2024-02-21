@@ -1,34 +1,106 @@
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const notes = [];
-    const revealedAreas = [];
-    const flashlightColors = ['rgba(255, 0, 0, 0.5)', 'rgba(0, 255, 0, 0.5)', 'rgba(0, 0, 255, 0.5)', 'rgba(255, 255, 0, 0.5)'];
-    let currentColorIndex = 0;
-    let flashlightColor = flashlightColors[currentColorIndex];
     const flashlightRadius = 50;
+    const colors = ['rgba(255, 0, 0, 0.5)', 'rgba(0, 255, 0, 0.5)', 'rgba(0, 0, 255, 0.5)'];
+    let currentColorIndex = 0;
+    let notes = []; // Array to hold note objects
+    let revealedSpots = []; // Array to hold positions where the flashlight has clicked
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const noteImages = []; // Array of Image objects for notes, to be initialized
-    const noteAudios = []; // Array of Audio objects for notes, to be initialized
+    // Function to draw the flashlight effect
+    function drawFlashlight(x, y) {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height); // Reset canvas
 
-    function initNotes() {
-        // Initialize notes with positions, images, and audios
+        // Reveal spots where the flashlight has clicked
+        revealedSpots.forEach(spot => {
+            ctx.fillStyle = spot.color;
+            ctx.beginPath();
+            ctx.arc(spot.x, spot.y, flashlightRadius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Draw the flashlight beam
+        ctx.globalCompositeOperation = 'xor';
+        ctx.fillStyle = colors[currentColorIndex];
+        ctx.beginPath();
+        ctx.arc(x, y, flashlightRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
     }
 
-    function drawNotes() {
+    // Function to initialize and draw notes
+    function initAndDrawNotes() {
+        // Placeholder: Initialize your notes here with random positions
+        // For demonstration, let's create a single note
+        if (notes.length === 0) {
+            notes.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: 100,
+                color: 'white', // Note color
+                isRevealed: false,
+                audio: new Audio('path/to/your/audio.mp3') // Placeholder for audio path
+            });
+        }
+
+        // Draw notes that are revealed
         notes.forEach(note => {
-            if (note.revealed) {
-                ctx.drawImage(note.img, note.x, note.y, note.size, note.size);
+            if (note.isRevealed) {
+                ctx.fillStyle = note.color;
+                ctx.beginPath();
+                ctx.arc(note.x, note.y, note.size / 2, 0, Math.PI * 2); // Drawing notes as circles for simplicity
+                ctx.fill();
             }
         });
     }
 
-    function toggleNoteMusic(x, y) {
+    // Function to reveal notes within the flashlight beam
+    function revealNotes(x, y) {
         notes.forEach(note => {
-            if (note.revealed && x >= note.x && x <= note.x + note.size && y >= note.y && y <= note.y + note.size) {
+            const dx = note.x - x;
+            const dy = note.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < flashlightRadius + note.size / 2) {
+                note.isRevealed = true;
+            }
+        });
+    }
+
+    // Mouse move event to update flashlight position and reveal notes
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        drawFlashlight(mouseX, mouseY);
+        revealNotes(mouseX, mouseY);
+        initAndDrawNotes();
+    });
+
+    // Click event to change flashlight color and add revealed spot
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Add current position to revealed spots
+        revealedSpots.push({x: mouseX, y: mouseY, color: colors[currentColorIndex]});
+
+        // Change flashlight color
+        currentColorIndex = (currentColorIndex + 1) % colors.length;
+
+        // Check if a note is clicked and play/pause its audio
+        notes.forEach(note => {
+            const dx = note.x - mouseX;
+            const dy = note.y - mouseY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (note.isRevealed && distance < note.size / 2) {
                 if (note.audio.paused) {
                     note.audio.play();
                 } else {
@@ -36,67 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-    }
-
-    function revealArea(x, y) {
-        revealedAreas.push({ x: x - flashlightRadius, y: y - flashlightRadius, size: flashlightRadius * 2 });
-        notes.forEach(note => {
-            if (!note.revealed && isNoteRevealed(note)) {
-                note.revealed = true;
-            }
-        });
-    }
-
-    function isNoteRevealed(note) {
-        // Check if the note is within any revealed area
-        return revealedAreas.some(area => note.x + note.size > area.x && note.x < area.x + area.size &&
-                                          note.y + note.size > area.y && note.y < area.y + area.size);
-    }
-
-    canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawNotes();
-        revealedAreas.forEach(area => {
-            ctx.fillStyle = area.color;
-            ctx.fillRect(area.x, area.y, area.size, area.size);
-        });
-        drawFlashlight(mouseX, mouseY);
     });
 
-    canvas.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        revealArea(mouseX, mouseY);
-        toggleNoteMusic(mouseX, mouseY);
-        changeFlashlightColor();
-    });
-
-    function drawFlashlight(x, y) {
-        let radialGradient = ctx.createRadialGradient(x, y, 0, x, y, flashlightRadius);
-        radialGradient.addColorStop(0, flashlightColor);
-        radialGradient.addColorStop(1, 'transparent');
-
-        ctx.fillStyle = radialGradient;
-        ctx.beginPath();
-        ctx.arc(x, y, flashlightRadius, 0, 2 * Math.PI);
-        ctx.fill();
-    }
-
-    function changeFlashlightColor() {
-        currentColorIndex = (currentColorIndex + 1) % flashlightColors.length;
-        flashlightColor = flashlightColors[currentColorIndex];
-    }
-
-    function init() {
-        // Initialize your notes and other settings here
-        initNotes();
-    }
-
-    init();
+    // Initial canvas setup
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 });
