@@ -1,11 +1,18 @@
-body, html {
+html, body, canvas {
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    background-color: black;
+    box-sizing: border-box;
 }
 
+/* Ensure the body and html tags take up the full viewport height */
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Prevents scrolling if the canvas is larger than the viewport */
+}
+
+/* Set up the canvas to fill the entire screen */
 canvas {
-    display: block;
-    background-color: black;
+    display: block; /* Removes the default inline behavior, helping to fill the width */
+    background: black; /* Default background to black, as per your project's requirements */
 }
